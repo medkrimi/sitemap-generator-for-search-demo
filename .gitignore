@@ -38,3 +38,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# extractor skill fetch cache
+.cursor/skills/generate-extractor/.work/

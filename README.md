@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Sitemap Generator for Sitecore Search
 
-## Getting Started
+The purpose of this project is to accomplish 2 things:
+- Take a sitemap.xml from a customer's website and generate a truncated version for quick interation and integration
+- Generate an advanced extractor JS to use with Sitecore Search
 
-First, run the development server:
+## Setup
+
+If you plan to use everything via the app, copy and rename the .env.example to .env.local, and provide your own Cursor API key. You can get generate your own key from [Dashboard - API & SSH Keys](https://cursor.com/dashboard/api).
+
+Start the application using:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Provide the URL for a sitemap.xml file.
+- Set the Subset Size to a number greater than 1.
+- Click Generate Subset.
 
-## Learn More
+### What's Happening Now?
 
-To learn more about Next.js, take a look at the following resources:
+The application is grabbing the sitemap, and trimming it to only include your subset size number of URLs for each unique directory path, and then saving it as a new file locally in the app at /public/generated_sitemaps/.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## ...and then?
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Now a Step 2 will appear! This will allow you to invoke a Cursor Skill to generate a custom extractor based off 10 random URLs from the generated sitemap, and then provide validation reports for some URLs to verify what will be extracted by Sitecore Search. This file will also be saved at /public/generated_extractors/.
 
-## Deploy on Vercel
+If you do not want to provide a Cursor API key in the environment variables, you can also invoke the skill through the Cursor IDE by typing ``/generate-extractor`` in an Agent chat. This will default to using the most recently created sitemap file, and provide similar reporting on validation.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## ok. Now what?
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Now we just have to take what we have and go to the CEC in Sitecore Search.
+
+- Push your changes back up to GitHub
+- Navigate to your repo, and ``/public/generated_sitemaps/[most recent file].xml``, click the `RAW` button in the file utility navigation. Copy this URL
+- In Sitecore Search, create a new Source. Use your RAW sitemap URL from your repo as the sitemap for the source
+- For the Document Extractor, choose Web Crawler (Advanced), and use the generated extractor JS as your extractor function.

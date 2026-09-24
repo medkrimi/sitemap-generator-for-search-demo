@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { XMLParser, XMLBuilder } from 'fast-xml-parser';
+import { XMLBuilder } from 'fast-xml-parser';
 import { promises as fs } from 'fs';
 import path from 'path';
-
-interface SitemapUrl {
-  loc: string;
-  [key: string]: string | undefined;
-}
+import { parseSitemapUrls } from '@/lib/sitemap';
 
 const SITEMAP_DIR = path.join(process.cwd(), 'public', 'generated_sitemaps');
 
@@ -14,7 +10,6 @@ function determineContentType(url: string): string {
   const urlObj = new URL(url);
   const pathParts = urlObj.pathname.split('/').filter(Boolean);
 
-  // Common content type indicators
   const contentTypeIndicators = ['locations', 'doctors', 'conditions-and-treatments', 'forms', 'about'];
 
   for (const part of pathParts) {
@@ -22,13 +17,11 @@ function determineContentType(url: string): string {
     if (contentTypeIndicators.includes(lowercasePart)) {
       return lowercasePart;
     }
-    // Check for plural forms
     if (lowercasePart.endsWith('s') && contentTypeIndicators.includes(lowercasePart.slice(0, -1))) {
       return lowercasePart;
     }
   }
 
-  // If no specific content type is found, use the first part of the path
   return pathParts[0] || 'other';
 }
 
@@ -38,20 +31,13 @@ export async function POST(request: NextRequest) {
 
     const response = await fetch(sitemapUrl);
     const xmlData = await response.text();
+    const baseUrl = response.url || sitemapUrl;
+    const urls = parseSitemapUrls(xmlData, baseUrl);
 
-    const parser = new XMLParser({
-      ignoreAttributes: false,
-      attributeNamePrefix: "@_"
-    });
-    const result = parser.parse(xmlData);
-
-    if (!result.urlset || !Array.isArray(result.urlset.url)) {
-      throw new Error('Invalid sitemap format');
+    if (urls.length === 0) {
+      throw new Error('Sitemap contained no usable URLs');
     }
 
-    const urls = result.urlset.url.map((url: SitemapUrl) => typeof url === 'string' ? url : url.loc);
-
-    // Group URLs by content type
     const groupedUrls: { [key: string]: string[] } = {};
     urls.forEach((url: string) => {
       const contentType = determineContentType(url);
@@ -61,7 +47,6 @@ export async function POST(request: NextRequest) {
       groupedUrls[contentType].push(url);
     });
 
-    // Get subset for each group
     const subsetUrls: string[] = [];
     Object.entries(groupedUrls).forEach(([contentType, groupUrls]) => {
       const groupSubset = groupUrls.slice(0, subsetSize);
@@ -69,7 +54,6 @@ export async function POST(request: NextRequest) {
       console.log(`Content type: ${contentType}, Total URLs: ${groupUrls.length}, Subset size: ${groupSubset.length}`);
     });
 
-    // Generate new sitemap XML
     const builder = new XMLBuilder({
       arrayNodeName: "url",
       format: true,
@@ -84,18 +68,13 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    // Generate a unique ID for this sitemap
     const sitemapId = Date.now().toString();
-    
-    // Ensure the directory exists
     await fs.mkdir(SITEMAP_DIR, { recursive: true });
-
-    // Write the sitemap to a file
     const filePath = path.join(SITEMAP_DIR, `${sitemapId}.xml`);
     await fs.writeFile(filePath, newSitemap);
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       sitemapId,
       totalUrls: urls.length,
       subsetSize: subsetUrls.length
